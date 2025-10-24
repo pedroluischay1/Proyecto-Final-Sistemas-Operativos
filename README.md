@@ -28,9 +28,8 @@ Sistema operativo: Windows, Linux o macOS
 Clonar el repositorio:
 
 **bash**
-git clone https://github.com/tu-usuario/simulador-planificacion.git
 cd simulador-planificacion
-Compilar el proyecto:
+Compilar el proyecto
 
 **bash**
 javac SimuladorPlanificacion.java
