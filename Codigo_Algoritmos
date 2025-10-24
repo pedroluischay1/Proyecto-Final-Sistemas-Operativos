@@ -141,3 +141,89 @@ public class SimuladorPlanificacion extends JFrame {
                 return c;
             }
         });
+*AMANDA*
+
+        JScrollPane scrollSimulacion = new JScrollPane(tablaSimulacionTable);
+        scrollSimulacion.setBorder(BorderFactory.createTitledBorder("🏃 Simulación en Tiempo Real - Coloreo Dinámico"));
+
+        // Tabla de Resultados
+        modeloResultados = new DefaultTableModel(new String[]{
+            "Proceso", "Llegada (ti)", "CPU (t)", "Finalización (tf)", 
+            "Retorno (T)", "Espera (Te)", "Índice (I=t/T)"
+        }, 0);
+        
+        tablaResultadosTable = new JTable(modeloResultados);
+        tablaResultadosTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+        
+        // Mejorar el renderizado de la tabla de resultados
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(JLabel.CENTER);
+        for (int i = 0; i < tablaResultadosTable.getColumnCount(); i++) {
+            tablaResultadosTable.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
+        }
+        
+        // Estilo de Encabezado de la Tabla
+        tablaResultadosTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
+        tablaResultadosTable.getTableHeader().setBackground(COLOR_PRIMARIO);
+        tablaResultadosTable.getTableHeader().setForeground(Color.WHITE);
+        
+        JScrollPane scrollResultados = new JScrollPane(tablaResultadosTable);
+        scrollResultados.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(COLOR_SEGUNDARIO, 1), 
+            "📊 Resultados de Eficiencia", 
+            TitledBorder.LEFT, TitledBorder.TOP, 
+            new Font("Segoe UI", Font.BOLD, 14), COLOR_PRIMARIO
+        ));
+
+        // Agregar todas las tablas al panel central
+        panelCentral.add(scrollCola);
+        panelCentral.add(scrollHistorial);
+        panelCentral.add(scrollSimulacion);
+        panelCentral.add(scrollResultados);
+
+        panel.add(panelCentral, BorderLayout.CENTER);
+
+        // Panel para mostrar la cola del Round Robin y estado
+        panelColaRR = new JPanel(new BorderLayout());
+        
+        // Panel para estado de la simulación
+        JPanel panelEstado = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        panelEstado.setBackground(COLOR_FONDO);
+        estadoLabel = new JLabel("Estado: Listo para iniciar simulación");
+        estadoLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        estadoLabel.setForeground(COLOR_PRIMARIO);
+        panelEstado.add(estadoLabel);
+        
+        colaRRLabel = new JLabel("Cola RR: -", SwingConstants.CENTER); 
+        colaRRLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        colaRRLabel.setForeground(COLOR_ERROR);
+        colaRRLabel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
+        
+        panelColaRR.add(panelEstado, BorderLayout.WEST);
+        panelColaRR.add(colaRRLabel, BorderLayout.CENTER);
+        panelColaRR.setBackground(COLOR_FONDO);
+        panelColaRR.setVisible(true);
+
+        // Panel inferior con botones
+        JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 5));
+        panelBotones.setBackground(COLOR_FONDO);
+
+        btnIniciarSimulacion = new JButton("▶ Iniciar Simulación");
+        btnIniciarSimulacion.setBackground(COLOR_ACENTO);
+        btnIniciarSimulacion.setForeground(Color.WHITE);
+
+        btnLimpiarHistorial = new JButton("🧹 Limpiar Todo");
+        btnLimpiarHistorial.setBackground(COLOR_ERROR);
+        btnLimpiarHistorial.setForeground(Color.WHITE);
+
+        panelBotones.add(btnIniciarSimulacion);
+        panelBotones.add(btnLimpiarHistorial);
+
+        // Agrupamos el panel de la cola y los botones
+        JPanel panelSur = new JPanel(new BorderLayout());
+        panelSur.add(panelColaRR, BorderLayout.NORTH);
+        panelSur.add(panelBotones, BorderLayout.CENTER);
+        
+        panel.add(panelSur, BorderLayout.SOUTH);
+
+        add(panel);
