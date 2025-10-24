@@ -1,0 +1,143 @@
+import javax.swing.*; 
+import javax.swing.table.DefaultTableModel;
+import javax.swing.border.TitledBorder; 
+import javax.swing.table.DefaultTableCellRenderer;
+import java.awt.*;
+import java.util.*;
+import java.util.List;
+
+public class SimuladorPlanificacion extends JFrame {
+    private JComboBox<String> algoritmoCombo;
+    private JButton btnAgregarProceso, btnIniciarSimulacion, btnLimpiarHistorial;
+    private JTextField txtNombre, txtTiempoCPU, txtLlegada, txtQuantum;
+    private JTable colaProcesosTable, historialTable, tablaSimulacionTable, tablaResultadosTable;
+    private DefaultTableModel modeloCola, modeloHistorial, modeloSimulacion, modeloResultados;
+    private List<Proceso> procesos;
+    private int nextPID = 1;
+    private JLabel colaRRLabel, estadoLabel;
+    private JPanel panelColaRR;
+    private int tiempoMaximoSimulacion = 0;
+
+    private static final int TIEMPO_UNIDAD_MS = 3000; // 3 segundos
+    
+    // Colores para un diseño más limpio
+    private static final Color COLOR_PRIMARIO = new Color(52, 73, 94); 
+    private static final Color COLOR_FONDO = new Color(248, 249, 250); 
+    private static final Color COLOR_ACENTO = new Color(46, 204, 113); 
+    private static final Color COLOR_ERROR = new Color(231, 76, 60); 
+    private static final Color COLOR_SEGUNDARIO = new Color(178, 190, 195); 
+    private static final Color COLOR_EJECUCION = new Color(46, 204, 113); // Verde para ejecución
+    private static final Color COLOR_ESPERA = new Color(241, 196, 15); // Amarillo para llegada
+
+    public SimuladorPlanificacion() {
+        setTitle("Simulador Algoritmos de Planificación - Simulación en Tiempo Real");
+        setSize(1400, 1000);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        // Estilos
+        UIManager.put("Label.font", new Font("Segoe UI", Font.PLAIN, 12));
+        UIManager.put("Button.font", new Font("Segoe UI", Font.BOLD, 12));
+        UIManager.put("TitledBorder.font", new Font("Segoe UI", Font.BOLD, 14));
+        UIManager.put("Table.font", new Font("Segoe UI", Font.PLAIN, 12));
+        
+        procesos = new ArrayList<>();
+
+        JPanel panel = new JPanel(new BorderLayout(10, 10)); 
+        panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        panel.setBackground(COLOR_FONDO);
+
+        // Panel superior para agregar procesos
+        JPanel panelEntrada = new JPanel(new GridLayout(2, 6, 10, 5));
+        panelEntrada.setBorder(BorderFactory.createTitledBorder(
+            BorderFactory.createLineBorder(COLOR_PRIMARIO, 1), 
+            "Configuración de Procesos", 
+            TitledBorder.LEFT, TitledBorder.TOP, 
+            new Font("Segoe UI", Font.BOLD, 16), COLOR_PRIMARIO
+        ));
+        panelEntrada.setBackground(Color.WHITE);
+
+        txtNombre = new JTextField();
+        txtTiempoCPU = new JTextField();
+        txtLlegada = new JTextField();
+        txtQuantum = new JTextField();
+        txtQuantum.setEnabled(false);
+
+        // Fila de Etiquetas
+        panelEntrada.add(new JLabel("Nombre:"));
+        panelEntrada.add(new JLabel("Instante Llegada (unidades):")); 
+        panelEntrada.add(new JLabel("Tiempo CPU (unidades):"));     
+        panelEntrada.add(new JLabel("Quantum (unidades):"));
+        panelEntrada.add(new JLabel("Algoritmo de Planificación:"));
+        panelEntrada.add(new JLabel("")); 
+
+        // Fila de Campos de Texto
+        panelEntrada.add(txtNombre);
+        panelEntrada.add(txtLlegada);   
+        panelEntrada.add(txtTiempoCPU); 
+        panelEntrada.add(txtQuantum);
+
+        algoritmoCombo = new JComboBox<>(new String[]{"FCFS", "SJF", "Round Robin"});
+        panelEntrada.add(algoritmoCombo);
+
+        btnAgregarProceso = new JButton("➕ Agregar Proceso");
+        btnAgregarProceso.setBackground(COLOR_PRIMARIO);
+        btnAgregarProceso.setForeground(Color.WHITE);
+        panelEntrada.add(btnAgregarProceso);
+
+        panel.add(panelEntrada, BorderLayout.NORTH);
+
+        // Panel central con todas las tablas
+        JPanel panelCentral = new JPanel(new GridLayout(2, 2, 10, 10));
+        
+        // Tabla de Cola de Procesos
+        modeloCola = new DefaultTableModel(new String[]{"PID", "Nombre", "T. CPU Total", "T. Llegada", "Quantum"}, 0);
+        colaProcesosTable = new JTable(modeloCola);
+        JScrollPane scrollCola = new JScrollPane(colaProcesosTable);
+        scrollCola.setBorder(BorderFactory.createTitledBorder("Cola de Procesos Listos/Pendientes"));
+        
+        // Tabla de Historial
+        modeloHistorial = new DefaultTableModel(new String[]{"PID", "Nombre", "T. Ejecutado"}, 0);
+        historialTable = new JTable(modeloHistorial);
+        JScrollPane scrollHistorial = new JScrollPane(historialTable);
+        scrollHistorial.setBorder(BorderFactory.createTitledBorder("Historial de Ejecución"));
+        
+        // Tabla de Simulación en Tiempo Real
+        modeloSimulacion = new DefaultTableModel(new String[]{"Proceso"}, 0);
+        tablaSimulacionTable = new JTable(modeloSimulacion);
+        tablaSimulacionTable.setRowHeight(25);
+        
+        // Configurar el renderizador de celdas para colorear en tiempo real
+        tablaSimulacionTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                    boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                
+                if (column == 0) {
+                    // Columna de nombres de procesos
+                    c.setBackground(new Color(240, 240, 240));
+                    c.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                    setHorizontalAlignment(JLabel.LEFT);
+                } else {
+                    // Celdas de tiempo
+                    String cellValue = value != null ? value.toString() : "";
+                    if (cellValue.equals("X")) {
+                        c.setBackground(COLOR_EJECUCION); // Verde para ejecución
+                        c.setForeground(Color.WHITE);
+                        c.setFont(new Font("Segoe UI", Font.BOLD, 11));
+                    } else if (cellValue.equals("L")) {
+                        c.setBackground(COLOR_ESPERA); // Amarillo para llegada
+                        c.setForeground(Color.BLACK);
+                        c.setFont(new Font("Segoe UI", Font.BOLD, 11));
+                    } else {
+                        c.setBackground(Color.WHITE);
+                        c.setForeground(Color.BLACK);
+                    }
+                    setHorizontalAlignment(JLabel.CENTER);
+                }
+                
+                setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY, 1));
+                return c;
+            }
+        });
