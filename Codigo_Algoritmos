@@ -7,20 +7,22 @@ import java.util.*;
 import java.util.List;
 
 public class SimuladorPlanificacion extends JFrame {
+    // Componentes de interfaz gráfica: selector de algoritmo, botones, campos de texto, tablas y modelos para las tablas
     private JComboBox<String> algoritmoCombo;
     private JButton btnAgregarProceso, btnIniciarSimulacion, btnLimpiarHistorial;
     private JTextField txtNombre, txtTiempoCPU, txtLlegada, txtQuantum;
     private JTable colaProcesosTable, historialTable, tablaSimulacionTable, tablaResultadosTable;
     private DefaultTableModel modeloCola, modeloHistorial, modeloSimulacion, modeloResultados;
-    private List<Proceso> procesos;
-    private int nextPID = 1;
-    private JLabel colaRRLabel, estadoLabel;
-    private JPanel panelColaRR;
-    private int tiempoMaximoSimulacion = 0;
+    private List<Proceso> procesos; // Lista para almacenar procesos ingresados
+    private int nextPID = 1; // ID secuencial para asignar a cada proceso
+    private JLabel colaRRLabel, estadoLabel; // Etiquetas para mostrar información sobre cola RR y estado de la simulación
+    private JPanel panelColaRR; // Panel para mostrar la cola de Round Robin
+    private int tiempoMaximoSimulacion = 0; // Tiempo máximo estimado para la simulación
 
-    private static final int TIEMPO_UNIDAD_MS = 3000; // 3 segundos
+    // Constante para la duración de cada unidad de tiempo en milisegundos (3 segundos)
+    private static final int TIEMPO_UNIDAD_MS = 3000; 
     
-    // Colores para un diseño más limpio
+    // Definición de colores para la interfaz (principal, fondo, acento, error, espera, ejecución)
     private static final Color COLOR_PRIMARIO = new Color(52, 73, 94); 
     private static final Color COLOR_FONDO = new Color(248, 249, 250); 
     private static final Color COLOR_ACENTO = new Color(46, 204, 113); 
@@ -30,24 +32,26 @@ public class SimuladorPlanificacion extends JFrame {
     private static final Color COLOR_ESPERA = new Color(241, 196, 15); // Amarillo para llegada
 
     public SimuladorPlanificacion() {
+        // Configuración básica de la ventana principal
         setTitle("Simulador Algoritmos de Planificación - Simulación en Tiempo Real");
         setSize(1400, 1000);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
+        setLocationRelativeTo(null); // Centrar ventana
 
-        // Estilos
+        // Configuración global de fuentes para etiquetas, botones, bordes y tablas
         UIManager.put("Label.font", new Font("Segoe UI", Font.PLAIN, 12));
         UIManager.put("Button.font", new Font("Segoe UI", Font.BOLD, 12));
         UIManager.put("TitledBorder.font", new Font("Segoe UI", Font.BOLD, 14));
         UIManager.put("Table.font", new Font("Segoe UI", Font.PLAIN, 12));
         
-        procesos = new ArrayList<>();
+        procesos = new ArrayList<>(); // Inicializar la lista de procesos
 
+        // Panel principal contenedor con borde y espacio interior
         JPanel panel = new JPanel(new BorderLayout(10, 10)); 
         panel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         panel.setBackground(COLOR_FONDO);
 
-        // Panel superior para agregar procesos
+        // Panel superior para entrada de datos y selección de algoritmo
         JPanel panelEntrada = new JPanel(new GridLayout(2, 6, 10, 5));
         panelEntrada.setBorder(BorderFactory.createTitledBorder(
             BorderFactory.createLineBorder(COLOR_PRIMARIO, 1), 
@@ -57,57 +61,61 @@ public class SimuladorPlanificacion extends JFrame {
         ));
         panelEntrada.setBackground(Color.WHITE);
 
+        // Campos de texto para ingresar datos de procesos y quantum (deshabilitado inicialmente)
         txtNombre = new JTextField();
         txtTiempoCPU = new JTextField();
         txtLlegada = new JTextField();
         txtQuantum = new JTextField();
         txtQuantum.setEnabled(false);
 
-        // Fila de Etiquetas
+        // Etiquetas para los campos
         panelEntrada.add(new JLabel("Nombre:"));
         panelEntrada.add(new JLabel("Instante Llegada (unidades):")); 
         panelEntrada.add(new JLabel("Tiempo CPU (unidades):"));     
         panelEntrada.add(new JLabel("Quantum (unidades):"));
         panelEntrada.add(new JLabel("Algoritmo de Planificación:"));
-        panelEntrada.add(new JLabel("")); 
+        panelEntrada.add(new JLabel("")); // Espacio vacío
 
-        // Fila de Campos de Texto
+        // Campos de texto correspondientes
         panelEntrada.add(txtNombre);
         panelEntrada.add(txtLlegada);   
         panelEntrada.add(txtTiempoCPU); 
         panelEntrada.add(txtQuantum);
 
+        // Combo box para selección de algoritmo
         algoritmoCombo = new JComboBox<>(new String[]{"FCFS", "SJF", "Round Robin"});
         panelEntrada.add(algoritmoCombo);
 
+        // Botón para agregar proceso, con estilo
         btnAgregarProceso = new JButton("➕ Agregar Proceso");
         btnAgregarProceso.setBackground(COLOR_PRIMARIO);
         btnAgregarProceso.setForeground(Color.WHITE);
         panelEntrada.add(btnAgregarProceso);
 
+        // Añadir panel de entrada al panel principal en la parte norte
         panel.add(panelEntrada, BorderLayout.NORTH);
 
-        // Panel central con todas las tablas
+        // Panel central que contiene las tablas en una rejilla 2x2
         JPanel panelCentral = new JPanel(new GridLayout(2, 2, 10, 10));
         
-        // Tabla de Cola de Procesos
+        // Tabla de cola de procesos listos o pendientes
         modeloCola = new DefaultTableModel(new String[]{"PID", "Nombre", "T. CPU Total", "T. Llegada", "Quantum"}, 0);
         colaProcesosTable = new JTable(modeloCola);
         JScrollPane scrollCola = new JScrollPane(colaProcesosTable);
         scrollCola.setBorder(BorderFactory.createTitledBorder("Cola de Procesos Listos/Pendientes"));
         
-        // Tabla de Historial
+        // Tabla que muestra el historial de procesos que ya se ejecutaron
         modeloHistorial = new DefaultTableModel(new String[]{"PID", "Nombre", "T. Ejecutado"}, 0);
         historialTable = new JTable(modeloHistorial);
         JScrollPane scrollHistorial = new JScrollPane(historialTable);
         scrollHistorial.setBorder(BorderFactory.createTitledBorder("Historial de Ejecución"));
         
-        // Tabla de Simulación en Tiempo Real
+        // Tabla que mostrará la simulación en tiempo real con coloreo dinámico
         modeloSimulacion = new DefaultTableModel(new String[]{"Proceso"}, 0);
         tablaSimulacionTable = new JTable(modeloSimulacion);
         tablaSimulacionTable.setRowHeight(25);
         
-        // Configurar el renderizador de celdas para colorear en tiempo real
+        // Renderizador personalizado para colorear las celdas de la tabla de simulación
         tablaSimulacionTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
@@ -115,12 +123,12 @@ public class SimuladorPlanificacion extends JFrame {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 
                 if (column == 0) {
-                    // Columna de nombres de procesos
+                    // Columna de nombres de procesos con fondo gris claro y fuente en negrita y alineación izquierda
                     c.setBackground(new Color(240, 240, 240));
                     c.setFont(new Font("Segoe UI", Font.BOLD, 12));
                     setHorizontalAlignment(JLabel.LEFT);
                 } else {
-                    // Celdas de tiempo
+                    // Celdas para marcar ejecución (X en verde), llegada (L en amarillo) o vacío (blanco)
                     String cellValue = value != null ? value.toString() : "";
                     if (cellValue.equals("X")) {
                         c.setBackground(COLOR_EJECUCION); // Verde para ejecución
@@ -145,7 +153,7 @@ public class SimuladorPlanificacion extends JFrame {
         JScrollPane scrollSimulacion = new JScrollPane(tablaSimulacionTable);
         scrollSimulacion.setBorder(BorderFactory.createTitledBorder(" Simulación en Tiempo Real - Coloreo Dinámico"));
 
-        // Tabla de Resultados
+        // Tabla para mostrar resultados finales de la simulación con datos de eficiencia
         modeloResultados = new DefaultTableModel(new String[]{
             "Proceso", "Llegada (ti)", "CPU (t)", "Finalización (tf)", 
             "Retorno (T)", "Espera (Te)", "Índice (I=t/T)"
@@ -154,14 +162,13 @@ public class SimuladorPlanificacion extends JFrame {
         tablaResultadosTable = new JTable(modeloResultados);
         tablaResultadosTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
         
-        // Mejorar el renderizado de la tabla de resultados
+        // Centramos el texto en todas las columnas de resultados y damos estilo al encabezado
         DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
         centerRenderer.setHorizontalAlignment(JLabel.CENTER);
         for (int i = 0; i < tablaResultadosTable.getColumnCount(); i++) {
             tablaResultadosTable.getColumnModel().getColumn(i).setCellRenderer(centerRenderer);
         }
         
-        // Estilo de Encabezado de la Tabla
         tablaResultadosTable.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 12));
         tablaResultadosTable.getTableHeader().setBackground(COLOR_PRIMARIO);
         tablaResultadosTable.getTableHeader().setForeground(Color.WHITE);
@@ -174,7 +181,7 @@ public class SimuladorPlanificacion extends JFrame {
             new Font("Segoe UI", Font.BOLD, 14), COLOR_PRIMARIO
         ));
 
-        // Agregar todas las tablas al panel central
+        // Añadimos las tablas al panel central
         panelCentral.add(scrollCola);
         panelCentral.add(scrollHistorial);
         panelCentral.add(scrollSimulacion);
@@ -182,10 +189,10 @@ public class SimuladorPlanificacion extends JFrame {
 
         panel.add(panelCentral, BorderLayout.CENTER);
 
-        // Panel para mostrar la cola del Round Robin y estado
+        // Panel que muestra la cola de Round Robin y el estado actual de la simulación
         panelColaRR = new JPanel(new BorderLayout());
         
-        // Panel para estado de la simulación
+        // Panel para mostrar etiqueta de estado
         JPanel panelEstado = new JPanel(new FlowLayout(FlowLayout.LEFT));
         panelEstado.setBackground(COLOR_FONDO);
         estadoLabel = new JLabel("Estado: Listo para iniciar simulación");
@@ -193,6 +200,7 @@ public class SimuladorPlanificacion extends JFrame {
         estadoLabel.setForeground(COLOR_PRIMARIO);
         panelEstado.add(estadoLabel);
         
+        // Etiqueta para mostrar la cola de procesos en Round Robin
         colaRRLabel = new JLabel("Cola RR: -", SwingConstants.CENTER); 
         colaRRLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         colaRRLabel.setForeground(COLOR_ERROR);
@@ -203,7 +211,7 @@ public class SimuladorPlanificacion extends JFrame {
         panelColaRR.setBackground(COLOR_FONDO);
         panelColaRR.setVisible(true);
 
-        // Panel inferior con botones
+        // Panel inferior para botones iniciar simulación y limpiar todo
         JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 5));
         panelBotones.setBackground(COLOR_FONDO);
 
@@ -218,7 +226,7 @@ public class SimuladorPlanificacion extends JFrame {
         panelBotones.add(btnIniciarSimulacion);
         panelBotones.add(btnLimpiarHistorial);
 
-        // Agrupamos el panel de la cola y los botones
+        // Panel sur que agrupa cola RR y botones
         JPanel panelSur = new JPanel(new BorderLayout());
         panelSur.add(panelColaRR, BorderLayout.NORTH);
         panelSur.add(panelBotones, BorderLayout.CENTER);
@@ -226,7 +234,8 @@ public class SimuladorPlanificacion extends JFrame {
         panel.add(panelSur, BorderLayout.SOUTH);
 
         add(panel);
-            // Evento para controlar la visibilidad de la cola y el Quantum
+
+        // Listener para habilitar o deshabilitar el campo quantum según el algoritmo seleccionado
         algoritmoCombo.addActionListener(e -> {
             String algoritmo = (String) algoritmoCombo.getSelectedItem();
             
@@ -240,13 +249,15 @@ public class SimuladorPlanificacion extends JFrame {
             panelSur.revalidate();
             panelSur.repaint();
         });
-                // Ejecutar el listener una vez para configurar el estado inicial (FCFS)
+        // Seleccionar algoritmo FCFS inicialmente para que el estado inicial esté configurado
         algoritmoCombo.setSelectedItem("FCFS"); 
 
+        // Asociar acciones a botones
         btnAgregarProceso.addActionListener(e -> agregarProceso());
         btnIniciarSimulacion.addActionListener(e -> iniciarSimulacion());
 
         btnLimpiarHistorial.addActionListener(e -> {
+            // Limpia todas las listas y tablas, restablece estado y contador PID
             procesos.clear(); 
             modeloCola.setRowCount(0);
             modeloHistorial.setRowCount(0);
@@ -260,6 +271,7 @@ public class SimuladorPlanificacion extends JFrame {
         });
     }
 
+    // Método para agregar un proceso ingresado por el usuario a la lista y actualizar la tabla de cola
     private void agregarProceso() {
         try {
             String nombre = txtNombre.getText().trim();
@@ -269,23 +281,27 @@ public class SimuladorPlanificacion extends JFrame {
             if(txtQuantum.isEnabled()) {
                 quantum = Integer.parseInt(txtQuantum.getText().trim());
             }
+            // Validar entradas: no vacías ni valores negativos o cero cuando no permitido
             if(nombre.isEmpty() || tiempoCPU<=0 || instanteLlegada<0 || (txtQuantum.isEnabled() && quantum<=0)) {
                 JOptionPane.showMessageDialog(this, "Ingrese valores válidos", "Error de Entrada", JOptionPane.ERROR_MESSAGE);
                 return;
             }
-                        int confirm = JOptionPane.showConfirmDialog(this, "¿Desea agregar el proceso '"+nombre+"'?", "Confirmación", JOptionPane.YES_NO_OPTION);
+            // Confirmar desde cuadro de diálogo si desea agregar el proceso
+            int confirm = JOptionPane.showConfirmDialog(this, "¿Desea agregar el proceso '"+nombre+"'?", "Confirmación", JOptionPane.YES_NO_OPTION);
             if(confirm == JOptionPane.NO_OPTION) return;
 
+            // Crear proceso con nuevo PID y agregarlo a la lista
             Proceso p = new Proceso(nextPID++, nombre, tiempoCPU, instanteLlegada, quantum);
             procesos.add(p);
-            limpiarCampos();
-            actualizarTablaCola();
+            limpiarCampos(); // Limpia campos de entrada
+            actualizarTablaCola(); // Actualiza visualización en tabla de cola
             estadoLabel.setText("Estado: Proceso '" + nombre + "' agregado correctamente");
         } catch(NumberFormatException ex) {
             JOptionPane.showMessageDialog(this, "Ingrese solo números enteros en campos numéricos", "Error de Formato", JOptionPane.ERROR_MESSAGE);
         }
     }
 
+    // Limpia los campos de texto para un nuevo ingreso
     private void limpiarCampos() {
         txtNombre.setText("");
         txtTiempoCPU.setText("");
@@ -293,7 +309,8 @@ public class SimuladorPlanificacion extends JFrame {
         txtQuantum.setText("");
     }
 
-private void actualizarTablaCola() {
+    // Actualiza la tabla de cola con los procesos almacenados
+    private void actualizarTablaCola() {
         modeloCola.setRowCount(0);
         for(Proceso p: procesos) {
             String quantumDisplay = p.quantum > 0 ? String.valueOf(p.quantum) : "-";
@@ -301,6 +318,7 @@ private void actualizarTablaCola() {
         }
     }
 
+    // Método para iniciar la simulación según algoritmo seleccionado
     private void iniciarSimulacion() {
         String algoritmo = (String) algoritmoCombo.getSelectedItem();
         if(procesos.isEmpty()) {
@@ -308,19 +326,20 @@ private void actualizarTablaCola() {
             return;
         }
         
+        // Deshabilitar botones y combo para evitar modificación mientras la simulación está en progreso
         btnIniciarSimulacion.setEnabled(false);
         btnAgregarProceso.setEnabled(false);
         btnLimpiarHistorial.setEnabled(false);
         algoritmoCombo.setEnabled(false);
         
-        // Limpiar tablas
+        // Limpiar tablas de simulación y resultados
         modeloSimulacion.setRowCount(0);
         modeloResultados.setRowCount(0);
         tiempoMaximoSimulacion = 0;
         
         estadoLabel.setText("Estado: Simulación en progreso...");
         
-        //  Manejo de la etiqueta de cola al iniciar
+        // Mostrar etiqueta especial para cola Round Robin, si aplica
         if ("Round Robin".equals(algoritmo)) {
             colaRRLabel.setText("Cola RR: Iniciando...");
             colaRRLabel.setVisible(true);
@@ -328,23 +347,27 @@ private void actualizarTablaCola() {
             colaRRLabel.setVisible(false);
         }
 
+        // Crear copia separada de procesos para no modificar los originales durante simulación
         List<Proceso> procesosSimulacion = new ArrayList<>();
         for(Proceso p: procesos) procesosSimulacion.add(new Proceso(p));
+        // Ordenar la lista de procesos por instante de llegada ascendente
         procesosSimulacion.sort(Comparator.comparingInt(p -> p.instanteLlegada));
         
-        // Inicializar tabla de simulación
+        // Inicializar tabla que muestra la simulación tiempo por tiempo
         inicializarTablaSimulacion(procesosSimulacion);
         
+        // Crear hilo simulador que ejecuta la simulación en segundo plano
         Simulador simulador = new Simulador(procesosSimulacion, algoritmo);
         simulador.start();
     }
     
+    // Inicializa la tabla de simulación con las filas de los procesos y columnas por unidad de tiempo
     private void inicializarTablaSimulacion(List<Proceso> procesos) {
-        // Calcular tiempo máximo estimado para la simulación
+        // Calcular tiempo máximo estimado para la simulación sumando tiempo CPU + llegada de cada proceso
         tiempoMaximoSimulacion = procesos.stream().mapToInt(p -> p.tiempoCPU + p.instanteLlegada).sum();
-        tiempoMaximoSimulacion = Math.max(tiempoMaximoSimulacion, 20); // Mínimo 20 unidades
+        tiempoMaximoSimulacion = Math.max(tiempoMaximoSimulacion, 20); // Mínimo 20 unidades para perspectiva visual
         
-        // Crear columnas para la tabla de simulación
+        // Crear encabezados con números de tiempo desde 0 hasta tiempo máximo
         Vector<String> columnNames = new Vector<>();
         columnNames.add("Proceso");
         for (int i = 0; i <= tiempoMaximoSimulacion; i++) {
@@ -353,14 +376,13 @@ private void actualizarTablaCola() {
         
         modeloSimulacion.setColumnIdentifiers(columnNames);
         
-        // Agregar filas para cada proceso
+        // Agregar filas para cada proceso con marcadores "L" en el instante de llegada
         for (Proceso p : procesos) {
             Vector<Object> row = new Vector<>();
             row.add(p.nombre);
             for (int i = 0; i <= tiempoMaximoSimulacion; i++) {
-                // Marcar el instante de llegada con "L"
                 if (i == p.instanteLlegada) {
-                    row.add("L");
+                    row.add("L"); // Indicar llegada
                 } else {
                     row.add("");
                 }
@@ -369,18 +391,19 @@ private void actualizarTablaCola() {
         }
     }
     
+    // Actualiza la tabla de simulación para marcar una ejecución "X" en el tiempo actual para el proceso que corre
     private void actualizarTablaSimulacion(int tiempoActual, String procesoEjecutando) {
         SwingUtilities.invokeLater(() -> {
             if (tiempoActual <= tiempoMaximoSimulacion) {
-                // Marcar la ejecución en todas las filas para este tiempo
+                // Por cada fila, si es el proceso que se ejecuta, marca "X" en la columna del tiempo actual +1 (columna 0 es nombre)
                 for (int row = 0; row < modeloSimulacion.getRowCount(); row++) {
                     String proceso = modeloSimulacion.getValueAt(row, 0).toString();
                     if (proceso.equals(procesoEjecutando)) {
-                        modeloSimulacion.setValueAt("X", row, tiempoActual + 1); // +1 porque columna 0 es el nombre
+                        modeloSimulacion.setValueAt("X", row, tiempoActual + 1);
                     }
                 }
                 
-                // Hacer scroll automático a la columna actual
+                // Hacer scroll automático hacia la columna del tiempo actual para mejor visualización
                 if (tiempoActual + 1 < tablaSimulacionTable.getColumnCount()) {
                     tablaSimulacionTable.scrollRectToVisible(
                         tablaSimulacionTable.getCellRect(0, tiempoActual + 1, true)
@@ -390,6 +413,7 @@ private void actualizarTablaCola() {
         });
     }
     
+    // Mostrar los resultados finales calculados en la tabla de resultados, incluyendo tiempos y índices de servicio
     private void mostrarResultadosEnTabla(List<Proceso> resultados, int tiempoSistemaFinal, String algoritmo, String secuenciaEjecucion) {
         SwingUtilities.invokeLater(() -> {
             modeloResultados.setRowCount(0);
@@ -397,7 +421,7 @@ private void actualizarTablaCola() {
             double totalIndiceServicio = 0;
             resultados.sort(Comparator.comparingInt(p -> p.pid));
 
-            // Llenar la tabla de resultados
+            // Para cada proceso calcular tiempo retorno, espera e índice servicio y cargar en tabla
             for(Proceso p : resultados) {
                 p.tiempoRetorno = p.tiempoFinalizacion - p.instanteLlegada;
                 p.tiempoEspera = p.tiempoRetorno - p.tiempoCPU;
@@ -415,7 +439,7 @@ private void actualizarTablaCola() {
                 });
             }
             
-            // Agregar la fila de promedio
+            // Agregar fila con promedio del índice de servicio al final si hay resultados
             if(!resultados.isEmpty()) {
                 double avgIndiceServicio = totalIndiceServicio / resultados.size();
                 modeloResultados.addRow(new Object[]{
@@ -429,7 +453,7 @@ private void actualizarTablaCola() {
                 });
             }
             
-            // Habilitar botones de control
+            // Reactivar los botones y combo box para permitir nueva interacción tras finalizar la simulación
             btnIniciarSimulacion.setEnabled(true);
             btnAgregarProceso.setEnabled(true);
             btnLimpiarHistorial.setEnabled(true);
@@ -437,19 +461,20 @@ private void actualizarTablaCola() {
 
             estadoLabel.setText("Estado: Simulación completada. Tiempo total: " + tiempoSistemaFinal + " unidades");
 
-            // Restablecer la visibilidad de la cola según el algoritmo seleccionado
+            // Mostrar u ocultar etiqueta cola RR según algoritmo seleccionado
             String currentAlg = (String) algoritmoCombo.getSelectedItem();
             colaRRLabel.setVisible("Round Robin".equals(currentAlg));
         });
     }
     
+    // Clase interna Simulador que ejecuta la simulación en un hilo aparte para evitar bloquear la interfaz
     private class Simulador extends Thread {
-        private List<Proceso> listaProcesos;
-        private String algoritmo;
-        private int tiempoSistema = 0;
-        private List<Proceso> historial = new ArrayList<>();
-        private StringBuilder secuenciaEjecucion = new StringBuilder(); 
-
+        private List<Proceso> listaProcesos; // Procesos por ejecutar (ordenados y copiables)
+        private String algoritmo; // Algoritmo seleccionado
+        private int tiempoSistema = 0; // Tiempo virtual del sistema
+        private List<Proceso> historial = new ArrayList<>(); // Historial de procesos finalizados
+        private StringBuilder secuenciaEjecucion = new StringBuilder(); // Para registrar secuencia de ejecución
+        
         public Simulador(List<Proceso> procesos, String algoritmo) {
             listaProcesos = procesos; 
             this.algoritmo = algoritmo;
@@ -457,40 +482,43 @@ private void actualizarTablaCola() {
 
         @Override
         public void run() {
-            List<Proceso> colaListos = new LinkedList<>(); 
+            List<Proceso> colaListos = new LinkedList<>(); // Cola de procesos listos para ejecutar
             
+            // Mover procesos que ya llegaron a cola de listos
             moverLlegados(colaListos);
 
             while (!colaListos.isEmpty() || !listaProcesos.isEmpty()) {
                 
                 if (colaListos.isEmpty()) {
+                    // Si cola vacía, avanzar el tiempo hasta que alguno llegue
                     tiempoSistema++;
                     try { Thread.sleep(TIEMPO_UNIDAD_MS);} catch (Exception ex) {}
                     moverLlegados(colaListos); 
                     continue;
                 }
                 
-                //  Solo actualiza y muestra la etiqueta si es Round Robin
+                // Actualizar etiqueta cola RR solo si es algoritmo Round Robin
                 if ("Round Robin".equals(algoritmo)) {
                     actualizarColaRRLabel(colaListos); 
                 }
-                // ️
 
                 Proceso actual = null;
 
- switch (algoritmo) {
+                switch (algoritmo) {
                     case "FCFS":
                     case "SJF": 
+                        // Para SJF ordenar cola por tiempo restante (tiempoCPU - ejecutado)
                         if (algoritmo.equals("SJF")) {
-                           colaListos.sort(Comparator.comparingInt(p -> p.tiempoCPU - p.tiempoEjecutado));
+                            colaListos.sort(Comparator.comparingInt(p -> p.tiempoCPU - p.tiempoEjecutado));
                         }
                         actual = colaListos.get(0);
-                        // Registra el proceso (para el trace final)
+                        // Registrar proceso en secuencia de ejecución para mostrar trace final
                         secuenciaEjecucion.append(actual.nombre).append(" "); 
                         
-                        // Actualizar tabla de simulación antes de ejecutar
+                        // Actualizar tabla simulación para mostrar ejecución actual
                         actualizarTablaSimulacion(tiempoSistema, actual.nombre);
                         
+                        // Ejecutar proceso sin interrupción por su tiempo restante
                         runProcesoNoPreemptivo(actual, colaListos, historial, actual.tiempoCPU - actual.tiempoEjecutado); 
                         break;
                         
@@ -500,11 +528,11 @@ private void actualizarTablaCola() {
                         int restanteCPU = actual.tiempoCPU - actual.tiempoEjecutado;
                         int stepMax = Math.min(actual.quantum, restanteCPU);
                         
-                        // Registra el proceso (para el trace final)
+                        // Registrar proceso en secuencia
                         secuenciaEjecucion.append(actual.nombre).append(" "); 
 
                         for (int u = 0; u < stepMax; u++) {
-                            // Actualizar tabla de simulación en cada unidad de tiempo
+                            // Actualizar simulación por unidad de tiempo
                             actualizarTablaSimulacion(tiempoSistema, actual.nombre);
                             
                             actual.tiempoEjecutado++;
@@ -518,35 +546,38 @@ private void actualizarTablaCola() {
                         }
 
                         if (actual.tiempoEjecutado >= actual.tiempoCPU) {
+                            // Proceso terminado: eliminar de cola y guardar en historial
                             colaListos.remove(0); 
                             historial.add(actual);
                             actual.tiempoFinalizacion = tiempoSistema;
                         } else {
-                            // Mueve el proceso al final de la cola
+                            // Si no terminó, mover al final de la cola para Round Robin
                             colaListos.remove(0);
                             colaListos.add(actual);
                         }
                         break;
                 }
 
+                // Actualizar tablas de cola y de historial con estado actual
                 actualizarTablaColaSim(colaListos);
                 actualizarTablaHistorial(historial);
             }
 
             String traceFinal = secuenciaEjecucion.toString().trim();
             
-            // ⬇ Limpiar y ocultar la etiqueta al finalizar la simulación
+            // Al finalizar simulación, limpiar y actualizar etiqueta de cola RR
             SwingUtilities.invokeLater(() -> {
                 colaRRLabel.setText("Cola RR: Simulación Finalizada"); 
                 if (!"Round Robin".equals(algoritmo)) {
                     colaRRLabel.setVisible(false);
                 }
             });
-            // ⬆
 
+            // Mostrar resultados finales en la tabla de resultados
             mostrarResultadosEnTabla(historial, tiempoSistema, algoritmo, traceFinal); 
         }
         
+        // Actualiza la etiqueta que muestra el estado actual de la cola en Round Robin
         private void actualizarColaRRLabel(List<Proceso> cola) {
             SwingUtilities.invokeLater(() -> {
                 if (cola.isEmpty()) {
@@ -567,20 +598,21 @@ private void actualizarTablaCola() {
             });
         }
 
+        // Mueve procesos que ya han llegado al instante actual a la cola de listos
         private void moverLlegados(List<Proceso> colaListos) {
             Iterator<Proceso> it = listaProcesos.iterator();
             while (it.hasNext()) {
                 Proceso p = it.next();
                 if (p.instanteLlegada <= tiempoSistema) {
                     colaListos.add(p);
-                    it.remove();
+                    it.remove(); // Eliminar de lista de procesos pendientes
                 }
             }
         }
 
+        // Ejecuta un proceso no preemptivo (sin pausas) durante tiempoEjecutar unidades, actualizando estado y tabla simulación
         private void runProcesoNoPreemptivo(Proceso p, List<Proceso> cola, List<Proceso> hist, int tiempoEjecutar) {
             for(int i=0;i<tiempoEjecutar;i++) {
-                // Actualizar tabla de simulación en cada unidad de tiempo
                 actualizarTablaSimulacion(tiempoSistema, p.nombre);
                 
                 p.tiempoEjecutado++;
@@ -590,6 +622,7 @@ private void actualizarTablaCola() {
                 moverLlegados(cola);
             }
             
+            // Cuando termina, eliminar de cola y agregar a historial marcando tiempo finalización
             if(p.tiempoEjecutado >= p.tiempoCPU) {
                 cola.remove(p);
                 hist.add(p);
@@ -597,6 +630,7 @@ private void actualizarTablaCola() {
             } 
         }
 
+        // Actualiza la tabla de cola de procesos listos con sus datos actuales
         private void actualizarTablaColaSim(List<Proceso> cola) {
             SwingUtilities.invokeLater(() -> {
                 modeloCola.setRowCount(0);
@@ -607,6 +641,7 @@ private void actualizarTablaCola() {
             });
         }
 
+        // Actualiza la tabla de historial con los procesos que ya terminaron y su tiempo ejecutado
         private void actualizarTablaHistorial(List<Proceso> hist) {
             SwingUtilities.invokeLater(() -> {
                 modeloHistorial.setRowCount(0);
@@ -617,17 +652,19 @@ private void actualizarTablaCola() {
         }
     }
 
+    // Clase Proceso que representa un proceso con sus características y estados
     private class Proceso {
-        int pid;
-        String nombre;
-        int tiempoCPU;
-        int instanteLlegada;
-        int quantum; 
-        int tiempoEjecutado;
-        int tiempoFinalizacion = -1;
-        int tiempoRetorno = -1; 
-        int tiempoEspera = -1; 
+        int pid; // Identificador único del proceso
+        String nombre; // Nombre del proceso
+        int tiempoCPU; // Tiempo total requerido para ejecución en CPU
+        int instanteLlegada; // Tiempo en el que llega a la cola de listos
+        int quantum; // Quantum para Round Robin (0 si no aplica)
+        int tiempoEjecutado; // Tiempo que ha sido ejecutado hasta ahora
+        int tiempoFinalizacion = -1; // Tiempo en que el proceso finalizó
+        int tiempoRetorno = -1; // Tiempo retorno (finalización - llegada)
+        int tiempoEspera = -1; // Tiempo de espera en cola (retorno - CPU)
 
+        // Constructor para crear un nuevo proceso con datos iniciales
         public Proceso(int pid, String nombre, int tiempoCPU, int instanteLlegada, int quantum) {
             this.pid = pid;
             this.nombre = nombre;
@@ -637,6 +674,7 @@ private void actualizarTablaCola() {
             this.tiempoEjecutado = 0;
         }
 
+        // Constructor copia para simular sin modificar los datos originales
         public Proceso(Proceso p) {
             this.pid = p.pid;
             this.nombre = p.nombre;
@@ -650,6 +688,7 @@ private void actualizarTablaCola() {
         }
     }
 
+    // Método principal que inicia la interfaz gráfica en el hilo de eventos Swing
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             new SimuladorPlanificacion().setVisible(true);
