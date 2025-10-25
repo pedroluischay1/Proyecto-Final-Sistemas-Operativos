@@ -478,5 +478,181 @@ private void actualizarTablaCola() {
 
                 Proceso actual = null;
 
+ switch (algoritmo) {
+                    case "FCFS":
+                    case "SJF": 
+                        if (algoritmo.equals("SJF")) {
+                           colaListos.sort(Comparator.comparingInt(p -> p.tiempoCPU - p.tiempoEjecutado));
+                        }
+                        actual = colaListos.get(0);
+                        // Registra el proceso (para el trace final)
+                        secuenciaEjecucion.append(actual.nombre).append(" "); 
+                        
+                        // Actualizar tabla de simulación antes de ejecutar
+                        actualizarTablaSimulacion(tiempoSistema, actual.nombre);
+                        
+                        runProcesoNoPreemptivo(actual, colaListos, historial, actual.tiempoCPU - actual.tiempoEjecutado); 
+                        break;
+                        
+                    case "Round Robin":
+                        actual = colaListos.get(0);
 
+                        int restanteCPU = actual.tiempoCPU - actual.tiempoEjecutado;
+                        int stepMax = Math.min(actual.quantum, restanteCPU);
+                        
+                        // Registra el proceso (para el trace final)
+                        secuenciaEjecucion.append(actual.nombre).append(" "); 
 
+                        for (int u = 0; u < stepMax; u++) {
+                            // Actualizar tabla de simulación en cada unidad de tiempo
+                            actualizarTablaSimulacion(tiempoSistema, actual.nombre);
+                            
+                            actual.tiempoEjecutado++;
+                            tiempoSistema++; 
+                            try { Thread.sleep(TIEMPO_UNIDAD_MS); } catch (Exception ex) {}
+
+                            moverLlegados(colaListos);
+                            actualizarColaRRLabel(colaListos); 
+
+                            if (actual.tiempoEjecutado >= actual.tiempoCPU) break;
+                        }
+
+                        if (actual.tiempoEjecutado >= actual.tiempoCPU) {
+                            colaListos.remove(0); 
+                            historial.add(actual);
+                            actual.tiempoFinalizacion = tiempoSistema;
+                        } else {
+                            // Mueve el proceso al final de la cola
+                            colaListos.remove(0);
+                            colaListos.add(actual);
+                        }
+                        break;
+                }
+
+                actualizarTablaColaSim(colaListos);
+                actualizarTablaHistorial(historial);
+            }
+
+            String traceFinal = secuenciaEjecucion.toString().trim();
+            
+            // ⬇ Limpiar y ocultar la etiqueta al finalizar la simulación
+            SwingUtilities.invokeLater(() -> {
+                colaRRLabel.setText("Cola RR: Simulación Finalizada"); 
+                if (!"Round Robin".equals(algoritmo)) {
+                    colaRRLabel.setVisible(false);
+                }
+            });
+            // ⬆
+
+            mostrarResultadosEnTabla(historial, tiempoSistema, algoritmo, traceFinal); 
+        }
+        
+        private void actualizarColaRRLabel(List<Proceso> cola) {
+            SwingUtilities.invokeLater(() -> {
+                if (cola.isEmpty()) {
+                    colaRRLabel.setText("Cola RR (t=" + tiempoSistema + "): Vacía");
+                    return;
+                }
+                
+                StringBuilder sb = new StringBuilder("Cola RR (t=" + tiempoSistema + "): ");
+                for(Proceso p : cola) {
+                    sb.append(p.nombre).append(" (").append(p.tiempoCPU - p.tiempoEjecutado).append("), ");
+                }
+                
+                if (sb.length() > 0 && sb.toString().endsWith(", ")) {
+                    sb.setLength(sb.length() - 2); 
+                }
+                
+                colaRRLabel.setText(sb.toString());
+            });
+        }
+
+        private void moverLlegados(List<Proceso> colaListos) {
+            Iterator<Proceso> it = listaProcesos.iterator();
+            while (it.hasNext()) {
+                Proceso p = it.next();
+                if (p.instanteLlegada <= tiempoSistema) {
+                    colaListos.add(p);
+                    it.remove();
+                }
+            }
+        }
+
+        private void runProcesoNoPreemptivo(Proceso p, List<Proceso> cola, List<Proceso> hist, int tiempoEjecutar) {
+            for(int i=0;i<tiempoEjecutar;i++) {
+                // Actualizar tabla de simulación en cada unidad de tiempo
+                actualizarTablaSimulacion(tiempoSistema, p.nombre);
+                
+                p.tiempoEjecutado++;
+                tiempoSistema++; 
+                try { Thread.sleep(TIEMPO_UNIDAD_MS);} catch(Exception ex) {}
+
+                moverLlegados(cola);
+            }
+            
+            if(p.tiempoEjecutado >= p.tiempoCPU) {
+                cola.remove(p);
+                hist.add(p);
+                p.tiempoFinalizacion = tiempoSistema; 
+            } 
+        }
+
+        private void actualizarTablaColaSim(List<Proceso> cola) {
+            SwingUtilities.invokeLater(() -> {
+                modeloCola.setRowCount(0);
+                for(Proceso p: cola) {
+                    String quantumDisplay = p.quantum > 0 ? String.valueOf(p.quantum) : "-";
+                    modeloCola.addRow(new Object[]{p.pid, p.nombre, p.tiempoCPU, p.instanteLlegada, quantumDisplay});
+                }
+            });
+        }
+
+        private void actualizarTablaHistorial(List<Proceso> hist) {
+            SwingUtilities.invokeLater(() -> {
+                modeloHistorial.setRowCount(0);
+                for(Proceso p: hist) {
+                    modeloHistorial.addRow(new Object[]{p.pid, p.nombre, p.tiempoEjecutado});
+                }
+            });
+        }
+    }
+
+    private class Proceso {
+        int pid;
+        String nombre;
+        int tiempoCPU;
+        int instanteLlegada;
+        int quantum; 
+        int tiempoEjecutado;
+        int tiempoFinalizacion = -1;
+        int tiempoRetorno = -1; 
+        int tiempoEspera = -1; 
+
+        public Proceso(int pid, String nombre, int tiempoCPU, int instanteLlegada, int quantum) {
+            this.pid = pid;
+            this.nombre = nombre;
+            this.tiempoCPU = tiempoCPU;
+            this.instanteLlegada = instanteLlegada;
+            this.quantum = quantum;
+            this.tiempoEjecutado = 0;
+        }
+
+        public Proceso(Proceso p) {
+            this.pid = p.pid;
+            this.nombre = p.nombre;
+            this.tiempoCPU = p.tiempoCPU;
+            this.instanteLlegada = p.instanteLlegada;
+            this.quantum = p.quantum;
+            this.tiempoEjecutado = 0; 
+            this.tiempoFinalizacion = -1;
+            this.tiempoRetorno = -1; 
+            this.tiempoEspera = -1; 
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            new SimuladorPlanificacion().setVisible(true);
+        });
+    }
+}
