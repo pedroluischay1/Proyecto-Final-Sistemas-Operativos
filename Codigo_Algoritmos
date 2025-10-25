@@ -143,7 +143,7 @@ public class SimuladorPlanificacion extends JFrame {
         });
 
         JScrollPane scrollSimulacion = new JScrollPane(tablaSimulacionTable);
-        scrollSimulacion.setBorder(BorderFactory.createTitledBorder("🏃 Simulación en Tiempo Real - Coloreo Dinámico"));
+        scrollSimulacion.setBorder(BorderFactory.createTitledBorder(" Simulación en Tiempo Real - Coloreo Dinámico"));
 
         // Tabla de Resultados
         modeloResultados = new DefaultTableModel(new String[]{
@@ -169,7 +169,7 @@ public class SimuladorPlanificacion extends JFrame {
         JScrollPane scrollResultados = new JScrollPane(tablaResultadosTable);
         scrollResultados.setBorder(BorderFactory.createTitledBorder(
             BorderFactory.createLineBorder(COLOR_SEGUNDARIO, 1), 
-            "📊 Resultados de Eficiencia", 
+            " Resultados de Eficiencia", 
             TitledBorder.LEFT, TitledBorder.TOP, 
             new Font("Segoe UI", Font.BOLD, 14), COLOR_PRIMARIO
         ));
@@ -207,11 +207,11 @@ public class SimuladorPlanificacion extends JFrame {
         JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 5));
         panelBotones.setBackground(COLOR_FONDO);
 
-        btnIniciarSimulacion = new JButton("▶ Iniciar Simulación");
+        btnIniciarSimulacion = new JButton(" Iniciar Simulación");
         btnIniciarSimulacion.setBackground(COLOR_ACENTO);
         btnIniciarSimulacion.setForeground(Color.WHITE);
 
-        btnLimpiarHistorial = new JButton("🧹 Limpiar Todo");
+        btnLimpiarHistorial = new JButton(" Limpiar Todo");
         btnLimpiarHistorial.setBackground(COLOR_ERROR);
         btnLimpiarHistorial.setForeground(Color.WHITE);
 
@@ -292,6 +292,191 @@ public class SimuladorPlanificacion extends JFrame {
         txtLlegada.setText("");
         txtQuantum.setText("");
     }
+
+private void actualizarTablaCola() {
+        modeloCola.setRowCount(0);
+        for(Proceso p: procesos) {
+            String quantumDisplay = p.quantum > 0 ? String.valueOf(p.quantum) : "-";
+            modeloCola.addRow(new Object[]{p.pid, p.nombre, p.tiempoCPU, p.instanteLlegada, quantumDisplay});
+        }
+    }
+
+    private void iniciarSimulacion() {
+        String algoritmo = (String) algoritmoCombo.getSelectedItem();
+        if(procesos.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Agregue al menos un proceso para iniciar la simulación.", "Error de Inicio", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        
+        btnIniciarSimulacion.setEnabled(false);
+        btnAgregarProceso.setEnabled(false);
+        btnLimpiarHistorial.setEnabled(false);
+        algoritmoCombo.setEnabled(false);
+        
+        // Limpiar tablas
+        modeloSimulacion.setRowCount(0);
+        modeloResultados.setRowCount(0);
+        tiempoMaximoSimulacion = 0;
+        
+        estadoLabel.setText("Estado: Simulación en progreso...");
+        
+        //  Manejo de la etiqueta de cola al iniciar
+        if ("Round Robin".equals(algoritmo)) {
+            colaRRLabel.setText("Cola RR: Iniciando...");
+            colaRRLabel.setVisible(true);
+        } else {
+            colaRRLabel.setVisible(false);
+        }
+
+        List<Proceso> procesosSimulacion = new ArrayList<>();
+        for(Proceso p: procesos) procesosSimulacion.add(new Proceso(p));
+        procesosSimulacion.sort(Comparator.comparingInt(p -> p.instanteLlegada));
+        
+        // Inicializar tabla de simulación
+        inicializarTablaSimulacion(procesosSimulacion);
+        
+        Simulador simulador = new Simulador(procesosSimulacion, algoritmo);
+        simulador.start();
+    }
+    
+    private void inicializarTablaSimulacion(List<Proceso> procesos) {
+        // Calcular tiempo máximo estimado para la simulación
+        tiempoMaximoSimulacion = procesos.stream().mapToInt(p -> p.tiempoCPU + p.instanteLlegada).sum();
+        tiempoMaximoSimulacion = Math.max(tiempoMaximoSimulacion, 20); // Mínimo 20 unidades
+        
+        // Crear columnas para la tabla de simulación
+        Vector<String> columnNames = new Vector<>();
+        columnNames.add("Proceso");
+        for (int i = 0; i <= tiempoMaximoSimulacion; i++) {
+            columnNames.add(String.valueOf(i));
+        }
+        
+        modeloSimulacion.setColumnIdentifiers(columnNames);
+        
+        // Agregar filas para cada proceso
+        for (Proceso p : procesos) {
+            Vector<Object> row = new Vector<>();
+            row.add(p.nombre);
+            for (int i = 0; i <= tiempoMaximoSimulacion; i++) {
+                // Marcar el instante de llegada con "L"
+                if (i == p.instanteLlegada) {
+                    row.add("L");
+                } else {
+                    row.add("");
+                }
+            }
+            modeloSimulacion.addRow(row);
+        }
+    }
+    
+    private void actualizarTablaSimulacion(int tiempoActual, String procesoEjecutando) {
+        SwingUtilities.invokeLater(() -> {
+            if (tiempoActual <= tiempoMaximoSimulacion) {
+                // Marcar la ejecución en todas las filas para este tiempo
+                for (int row = 0; row < modeloSimulacion.getRowCount(); row++) {
+                    String proceso = modeloSimulacion.getValueAt(row, 0).toString();
+                    if (proceso.equals(procesoEjecutando)) {
+                        modeloSimulacion.setValueAt("X", row, tiempoActual + 1); // +1 porque columna 0 es el nombre
+                    }
+                }
+                
+                // Hacer scroll automático a la columna actual
+                if (tiempoActual + 1 < tablaSimulacionTable.getColumnCount()) {
+                    tablaSimulacionTable.scrollRectToVisible(
+                        tablaSimulacionTable.getCellRect(0, tiempoActual + 1, true)
+                    );
+                }
+            }
+        });
+    }
+    
+    private void mostrarResultadosEnTabla(List<Proceso> resultados, int tiempoSistemaFinal, String algoritmo, String secuenciaEjecucion) {
+        SwingUtilities.invokeLater(() -> {
+            modeloResultados.setRowCount(0);
+            
+            double totalIndiceServicio = 0;
+            resultados.sort(Comparator.comparingInt(p -> p.pid));
+
+            // Llenar la tabla de resultados
+            for(Proceso p : resultados) {
+                p.tiempoRetorno = p.tiempoFinalizacion - p.instanteLlegada;
+                p.tiempoEspera = p.tiempoRetorno - p.tiempoCPU;
+                double indiceServicio = (p.tiempoRetorno > 0) ? (double)p.tiempoCPU / p.tiempoRetorno : 0.0;
+                totalIndiceServicio += indiceServicio;
+                
+                modeloResultados.addRow(new Object[]{
+                    p.nombre + " (" + p.pid + ")", 
+                    p.instanteLlegada,
+                    p.tiempoCPU,
+                    p.tiempoFinalizacion, 
+                    p.tiempoRetorno, 
+                    p.tiempoEspera,
+                    String.format("%.2f", indiceServicio)
+                });
+            }
+            
+            // Agregar la fila de promedio
+            if(!resultados.isEmpty()) {
+                double avgIndiceServicio = totalIndiceServicio / resultados.size();
+                modeloResultados.addRow(new Object[]{
+                    "PROMEDIO:", 
+                    "", 
+                    "", 
+                    "", 
+                    "", 
+                    "", 
+                    String.format("%.2f", avgIndiceServicio) 
+                });
+            }
+            
+            // Habilitar botones de control
+            btnIniciarSimulacion.setEnabled(true);
+            btnAgregarProceso.setEnabled(true);
+            btnLimpiarHistorial.setEnabled(true);
+            algoritmoCombo.setEnabled(true);
+
+            estadoLabel.setText("Estado: Simulación completada. Tiempo total: " + tiempoSistemaFinal + " unidades");
+
+            // Restablecer la visibilidad de la cola según el algoritmo seleccionado
+            String currentAlg = (String) algoritmoCombo.getSelectedItem();
+            colaRRLabel.setVisible("Round Robin".equals(currentAlg));
+        });
+    }
+    
+    private class Simulador extends Thread {
+        private List<Proceso> listaProcesos;
+        private String algoritmo;
+        private int tiempoSistema = 0;
+        private List<Proceso> historial = new ArrayList<>();
+        private StringBuilder secuenciaEjecucion = new StringBuilder(); 
+
+        public Simulador(List<Proceso> procesos, String algoritmo) {
+            listaProcesos = procesos; 
+            this.algoritmo = algoritmo;
+        }
+
+        @Override
+        public void run() {
+            List<Proceso> colaListos = new LinkedList<>(); 
+            
+            moverLlegados(colaListos);
+
+            while (!colaListos.isEmpty() || !listaProcesos.isEmpty()) {
+                
+                if (colaListos.isEmpty()) {
+                    tiempoSistema++;
+                    try { Thread.sleep(TIEMPO_UNIDAD_MS);} catch (Exception ex) {}
+                    moverLlegados(colaListos); 
+                    continue;
+                }
+                
+                //  Solo actualiza y muestra la etiqueta si es Round Robin
+                if ("Round Robin".equals(algoritmo)) {
+                    actualizarColaRRLabel(colaListos); 
+                }
+                // ️
+
+                Proceso actual = null;
 
 
 
