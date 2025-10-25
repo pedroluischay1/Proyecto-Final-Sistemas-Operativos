@@ -227,3 +227,18 @@ public class SimuladorPlanificacion extends JFrame {
         panel.add(panelSur, BorderLayout.SOUTH);
 
         add(panel);
+            // Evento para controlar la visibilidad de la cola y el Quantum
+        algoritmoCombo.addActionListener(e -> {
+            String algoritmo = (String) algoritmoCombo.getSelectedItem();
+            
+            boolean isRoundRobin = "Round Robin".equals(algoritmo);
+            
+            txtQuantum.setEnabled(isRoundRobin);
+            txtQuantum.setBackground(isRoundRobin ? Color.WHITE : new Color(230, 230, 230));
+            
+            colaRRLabel.setVisible(isRoundRobin);
+            
+            panelSur.revalidate();
+            panelSur.repaint();
+        });
+
