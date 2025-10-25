@@ -141,7 +141,6 @@ public class SimuladorPlanificacion extends JFrame {
                 return c;
             }
         });
-*AMANDA*
 
         JScrollPane scrollSimulacion = new JScrollPane(tablaSimulacionTable);
         scrollSimulacion.setBorder(BorderFactory.createTitledBorder("🏃 Simulación en Tiempo Real - Coloreo Dinámico"));
