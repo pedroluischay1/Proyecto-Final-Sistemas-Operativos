@@ -241,4 +241,38 @@ public class SimuladorPlanificacion extends JFrame {
             panelSur.revalidate();
             panelSur.repaint();
         });
+                // Ejecutar el listener una vez para configurar el estado inicial (FCFS)
+        algoritmoCombo.setSelectedItem("FCFS"); 
+
+        btnAgregarProceso.addActionListener(e -> agregarProceso());
+        btnIniciarSimulacion.addActionListener(e -> iniciarSimulacion());
+
+        btnLimpiarHistorial.addActionListener(e -> {
+            procesos.clear(); 
+            modeloCola.setRowCount(0);
+            modeloHistorial.setRowCount(0);
+            modeloSimulacion.setRowCount(0);
+            modeloResultados.setRowCount(0);
+            nextPID = 1;
+            colaRRLabel.setText("Cola RR: -"); 
+            estadoLabel.setText("Estado: Listo para iniciar simulación");
+            tiempoMaximoSimulacion = 0;
+            JOptionPane.showMessageDialog(this, "Historial y cola de procesos limpiados correctamente.", "Limpieza Completa", JOptionPane.INFORMATION_MESSAGE);
+        });
+    }
+
+    private void agregarProceso() {
+        try {
+            String nombre = txtNombre.getText().trim();
+            int tiempoCPU = Integer.parseInt(txtTiempoCPU.getText().trim());
+            int instanteLlegada = Integer.parseInt(txtLlegada.getText().trim());
+            int quantum = 0;
+            if(txtQuantum.isEnabled()) {
+                quantum = Integer.parseInt(txtQuantum.getText().trim());
+            }
+            if(nombre.isEmpty() || tiempoCPU<=0 || instanteLlegada<0 || (txtQuantum.isEnabled() && quantum<=0)) {
+                JOptionPane.showMessageDialog(this, "Ingrese valores válidos", "Error de Entrada", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
 
