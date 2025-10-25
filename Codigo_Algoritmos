@@ -274,5 +274,25 @@ public class SimuladorPlanificacion extends JFrame {
                 JOptionPane.showMessageDialog(this, "Ingrese valores válidos", "Error de Entrada", JOptionPane.ERROR_MESSAGE);
                 return;
             }
+                        int confirm = JOptionPane.showConfirmDialog(this, "¿Desea agregar el proceso '"+nombre+"'?", "Confirmación", JOptionPane.YES_NO_OPTION);
+            if(confirm == JOptionPane.NO_OPTION) return;
+
+            Proceso p = new Proceso(nextPID++, nombre, tiempoCPU, instanteLlegada, quantum);
+            procesos.add(p);
+            limpiarCampos();
+            actualizarTablaCola();
+            estadoLabel.setText("Estado: Proceso '" + nombre + "' agregado correctamente");
+        } catch(NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Ingrese solo números enteros en campos numéricos", "Error de Formato", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void limpiarCampos() {
+        txtNombre.setText("");
+        txtTiempoCPU.setText("");
+        txtLlegada.setText("");
+        txtQuantum.setText("");
+    }
+
 
 
